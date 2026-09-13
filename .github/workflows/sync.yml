@@ -1,0 +1,32 @@
+name: Sync SKILL.md
+
+# The served file at sendartifact.com/skill.md is canonical. This repo is a
+# mirror of it: nothing here is edited by hand.
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the served skill
+        run: curl -fsSL https://sendartifact.com/skill.md -o skills/send-artifact/SKILL.md
+
+      - name: Commit when it changed
+        run: |
+          if git diff --quiet; then
+            echo "SKILL.md is unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add skills/send-artifact/SKILL.md
+          git commit -m "Sync SKILL.md from sendartifact.com"
+          git push
