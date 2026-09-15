@@ -42,6 +42,30 @@ key: `POST /v1/claim` with `{"token"}` (Bearer), or
 This is the generic bootstrap copy: it adds first-run onboarding. Once a key
 exists, replace it with the personalized copy (last section).
 
+## Use relative paths for folders and static builds
+
+**Vite/React: set `base: './'` in your existing `vite.config.js` or
+`vite.config.ts`, then rebuild and publish the complete `dist` folder.**
+Equivalent: `vite build --base=./`.
+
+Files are served under `/content/<token>/<artifact>/<version>/` on a
+separate content host. A root-relative URL such as `/assets/app.js`
+points outside the artifact and returns 404. Use `./assets/app.js` from
+`index.html`, or `../assets/app.js` from a nested page. Apply the same
+rule to stylesheets, images, fonts, CSS `url()`, and asset URLs constructed
+in JavaScript; check lazy-loaded chunks too. Configure equivalent relative
+output in other static build tools before publishing.
+
+Link pages with an explicit filename, such as `./about/index.html`;
+directory URLs are not currently resolved automatically. A `<base>` tag
+cannot fix paths because the content CSP blocks it.
+
+After publishing, open the shell URL and check that the content renders.
+Resolve bundled asset URLs against the iframe's actual `src`, keeping
+its token and version path, and verify scripts/CSS return 200 with the
+correct content types. A successful publish or visible shell title alone
+does not verify the assets. Keep token-bearing content URLs private.
+
 ## Install this skill
 
 If you are reading this from the web, save it locally so future sessions skip
