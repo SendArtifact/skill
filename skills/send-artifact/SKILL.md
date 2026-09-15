@@ -57,14 +57,66 @@ in JavaScript; check lazy-loaded chunks too. Configure equivalent relative
 output in other static build tools before publishing.
 
 Link pages with an explicit filename, such as `./about/index.html`;
-directory URLs are not currently resolved automatically. A `<base>` tag
-cannot fix paths because the content CSP blocks it.
+directory URLs such as `./about/` or `./about` redirect to that directory's
+`index.html` only when it exists. Missing pages and assets stay 404; there
+is no SPA route catch-all. A `<base>` tag cannot fix paths because the
+content CSP blocks it.
+
+Publish returns `warnings` naming suspect HTML/CSS files; the CLI prints
+them on stderr. Fix warnings before sharing. The scan skips JavaScript and
+files over 2 MB, so a clean result does not prove that the app renders.
 
 After publishing, open the shell URL and check that the content renders.
 Resolve bundled asset URLs against the iframe's actual `src`, keeping
 its token and version path, and verify scripts/CSS return 200 with the
 correct content types. A successful publish or visible shell title alone
-does not verify the assets. Keep token-bearing content URLs private.
+does not verify the assets. Opening the content URL directly does not
+reproduce the iframe sandbox. Keep token-bearing content URLs private.
+
+## Guard browser storage
+
+The iframe sandbox has no `allow-same-origin`: even reading
+`window.localStorage` or `window.sessionStorage` can throw `SecurityError`
+before `getItem` runs. Put the property access and every read/write inside
+`try/catch`, including React state initializers. Keep current state in React
+or memory when storage is unavailable; it will not persist across reloads.
+Example for a theme initializer:
+
+```js
+function readTheme() {
+  try { return window.localStorage.getItem('theme') || 'light'; }
+  catch { return 'light'; }
+}
+function saveTheme(theme) {
+  try { window.localStorage.setItem('theme', theme); }
+  catch { /* Keep the current theme in React state. */ }
+}
+```
+
+Call `setTheme(nextTheme)` even when `saveTheme(nextTheme)` cannot persist.
+Smoke-check the published shell: confirm the app mounts, exercise its
+controls, and reload while checking the iframe console.
+
+## Fix and iterate at one address
+
+Every `--anonymous` publish creates a new artifact and private claim link.
+A claim token can claim an artifact; it cannot authorize anonymous updates.
+To keep one address, sign in using the account setup below, confirm a handle,
+then use the saved API key:
+
+```bash
+npx @sendartifact/cli claim CLAIM_URL --slug my-app
+# Read the live artifact before editing; it may have changed elsewhere.
+npx @sendartifact/cli read my-app --out live-index.html
+# Make the fix and rebuild dist, then publish with the saved key:
+npx @sendartifact/cli publish ./dist --slug my-app
+```
+
+Use the slug in the claim response URL on retries. The original anonymous
+link redirects to the claimed URL, and each account publish adds a version.
+Claiming makes the artifact private; widen access only to the audience the
+user requested with `npx @sendartifact/cli access my-app --visibility link`
+(for anyone holding the link). Keep `CLAIM_URL` private.
 
 ## Install this skill
 
