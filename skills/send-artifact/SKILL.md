@@ -37,6 +37,28 @@ key: `POST /v1/claim` with `{"token"}` (Bearer), or
 `npx @sendartifact/cli claim CLAIM_URL`. The account needs a handle first
 (`npx @sendartifact/cli handle NAME`).
 
+## Choose your connection
+
+- Hosted chat assistant: add the remote MCP connector at `https://sendartifact.com/mcp`.
+  Setup: https://sendartifact.com/connect. Account tools use browser OAuth with Google or an
+  emailed code; never ask for a password or sign-in code in chat. Choose a handle
+  at consent. Client plans and administrator settings may limit custom connectors.
+- Local files and a terminal: use the CLI below. For browser-page capture and
+  on-page feedback, use the Chrome extension.
+
+MCP tool discovery is public. `publish_artifact` sends either complete `html`
+or a complete `files` bundle (UTF-8 text/base64 binary), up to 25 MiB decoded.
+Use `destination: "account"` for account publishing; use `"temporary"` only
+when the user wants a seven-day unlisted page and a separate private claim link.
+An account request with invalid credentials must stop and reconnect.
+Read metadata and every file before updating; supply the returned `baseRevision`
+and preserve assets. After an uncertain write, inspect before trying again.
+
+The connector offers current artifact reads, publishing/claiming, sharing settings,
+and separate feedback reply/resolve tools. History, rollback and readership
+analytics remain in the CLI/dashboard. Discover exact tool parameters using
+`tools/list`; never invent a capability from the broader CLI manual below.
+
 ## With an account
 
 This is the generic bootstrap copy: it adds first-run onboarding. Once a key
@@ -265,9 +287,17 @@ commands keep working either way.
 
 ## Read, modify, republish
 
-1. `npx @sendartifact/cli read <slug>` to pull the live HTML.
-2. Edit locally, keeping supporting relative assets together.
-3. `npx @sendartifact/cli publish` with the same slug.
+Artifact commands accept a slug with `--handle` or `ARTIFACT_HANDLE`, an
+explicit `handle/slug`, or a reader URL from the configured Send Artifact
+origin. `whoami --json` reports the account and selected handle. Never infer
+a destination from artifact listing order. Use `--json` for complete structured
+results/errors; failed writes are never automatically retried. If a response
+is lost, inspect the target before another write. A lost anonymous response
+cannot recover its private claim link.
+
+1. `npx @sendartifact/cli read <slug> --out-dir ./artifact-edit --json` to export the complete live bundle to a new directory. Keep its returned `revision`.
+2. Edit locally, keeping every supporting relative asset together. A plain `read` exports only one file.
+3. `npx @sendartifact/cli publish ./artifact-edit --slug <slug> --base-revision <revision> --json` with the returned revision. A conflict means read again and reconcile; never overwrite a newer edit blindly. Missing files are rejected unless their removal is intentional and `--allow-remove-files` is supplied.
 4. Return the stable URL and new version number.
 
 Use `npx @sendartifact/cli analytics <slug>` for readership counts. A view
@@ -285,28 +315,28 @@ front of them) and `maxScrollPct`, with `medianActiveMs` across the artifact
 Viewers can pin comments directly on the artifact. When the user asks to review
 or address feedback on a published artifact:
 
-1. `npx @sendartifact/cli comments <slug>` — fetch open threads. Each carries
+1. `npx @sendartifact/cli comments <slug> --json` — fetch full open threads. The default human display is only a summary. Each carries
    the commenter, a quote with surrounding context that locates the passage,
    and any replies.
    The quote is the exact text the reader selected, the first 200 characters
    of the block they clicked, or empty for a pin on a spot.
-2. `npx @sendartifact/cli read <slug>` and locate each quoted passage in the
-   live HTML.
+2. `npx @sendartifact/cli read <slug> --out-dir ./artifact-edit --json` and locate each quoted passage in the live HTML. Keep the returned revision and every supporting file.
 3. Make the edits locally.
-4. `npx @sendartifact/cli publish` with the SAME slug — one republish covering
-   all edits.
-5. `npx @sendartifact/cli resolve <slug> <comment-id> --reply "…"` for each
+4. `npx @sendartifact/cli publish ./artifact-edit --slug <slug> --base-revision <revision> --json` with the SAME slug — one complete-bundle republish covering all edits. Reconcile any revision conflict before publishing.
+5. `npx @sendartifact/cli reply <slug> <comment-id> --body "…"` for each
    addressed comment, with a concrete reply naming what changed. The reply is
    shown to the commenter — never just "done".
-6. Report back to the user: what each commenter asked, what changed, the new
+6. `npx @sendartifact/cli resolve <slug> <comment-id>` to mark each addressed
+   thread resolved after replying. Resolving does not add another message.
+7. Report back to the user: what each commenter asked, what changed, the new
    version number, and the URL.
 
 Rules:
 
 - Republish before resolving, so the commenter sees the fix the reply describes.
 - NEVER resolve a comment you did not actually address.
-- To decline feedback or ask the commenter a question, reply with
-  `--reply-only` — the thread stays open.
+- To decline feedback or ask the commenter a question, use `reply` without
+  resolving. A reply does not change the thread's status.
 - Status `orphaned` means the quoted passage no longer exists in the current
   version; judge whether the feedback still applies before acting.
 
@@ -355,10 +385,8 @@ the CLI, the installed copy is stale — run it as
 `npx @sendartifact/cli@latest`. If the CLI advertises something this file
 doesn't mention, this file is stale — refresh it as below.
 
-## Not currently supported
-
-A self-hosted MCP server. The CLI above is the supported integration; a hosted
-MCP connector is planned.
+The hosted connector is described under “Choose your connection” above. No
+separate self-hosted MCP package is required.
 
 ## Upgrade to your personalized skill
 
